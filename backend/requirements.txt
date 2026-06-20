@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+websockets
+openai
+faster-whisper
+speechrecognition
+pyttsx3
+edge-tts
+pydantic
+httpx
+requests
