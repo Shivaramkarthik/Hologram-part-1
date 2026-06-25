@@ -128,14 +128,21 @@ function setToggleButtonState(groupName, isCloud) {
 }
 
 function updateVisibility() {
+    // Show/hide LLM-specific containers
     if (routeLLM.value === 'cloud') {
-        nimKeyContainer.classList.remove('hidden');
         cloudLLMContainer.classList.remove('hidden');
         localLLMContainer.classList.add('hidden');
     } else {
-        nimKeyContainer.classList.add('hidden');
         cloudLLMContainer.classList.add('hidden');
         localLLMContainer.classList.remove('hidden');
+    }
+    
+    // Show NIM API key if ANY pipeline route uses cloud (STT, LLM, or TTS all may need it)
+    const anyCloud = routeSTT.value === 'cloud' || routeLLM.value === 'cloud' || routeTTS.value === 'cloud';
+    if (anyCloud) {
+        nimKeyContainer.classList.remove('hidden');
+    } else {
+        nimKeyContainer.classList.add('hidden');
     }
     
     if (routeSTT.value === 'cloud') {
@@ -168,7 +175,7 @@ function sendConfiguration() {
                 cloud_tts_model: cloudTTS.value,
                 system_prompt: systemPrompt.value,
                 max_tokens: parseInt(maxTokens.value) || 4096,
-                vad_silence_threshold: parseInt(vadThreshold.value)
+                vad_threshold: parseInt(vadThreshold.value)
             }
         }));
     }
@@ -176,10 +183,8 @@ function sendConfiguration() {
 
 
 function connectWebSocket() {
-    const isFile = window.location.protocol === 'file:';
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = isFile ? '127.0.0.1:8000' : window.location.host;
-    const wsUrl = `${isFile ? 'ws:' : protocol}//${host}/ws`;
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
     
     socket = new WebSocket(wsUrl);
     
@@ -347,6 +352,8 @@ async function initAudioEngine() {
         micSource.connect(micAnalyser);
         
         // Script Processor for raw volume analysis (VAD)
+        // NOTE: ScriptProcessorNode is deprecated in the Web Audio API in favour of
+        // AudioWorkletNode. Kept for now due to wider cross-browser support.
         scriptNode = audioCtx.createScriptProcessor(2048, 1, 1);
         micSource.connect(scriptNode);
         scriptNode.connect(audioCtx.destination); // Required to trigger process callback
@@ -366,7 +373,9 @@ async function initAudioEngine() {
             vadMeterFill.style.width = `${volumePercent}%`;
             dbValue.textContent = `${volumePercent}%`;
             
-            // Fixed RMS voice gate threshold (0.015)
+            // Fixed RMS voice gate threshold — determines minimum mic volume to start recording.
+            // NOTE: The VAD Threshold slider in the sidebar controls silence *duration* (ms)
+            // before finalizing speech, NOT volume sensitivity. The red gate marker is cosmetic.
             const thresholdVolume = 0.015;
             
             if (rms > thresholdVolume) {
@@ -609,6 +618,8 @@ function initThreeScene() {
     scene.add(innerOrbMesh);
 
     // 2. Outer cyber-cage (Wireframe shell)
+    // NOTE: Despite the name "orbMesh", this is the outer wireframe cage, not the
+    // inner plasma core (which is "innerOrbMesh"). Kept for historical consistency.
     const outerGeo = new THREE.SphereGeometry(1.15, 24, 24);
     const outerMat = new THREE.MeshBasicMaterial({
         color: 0x06b6d4,
@@ -850,9 +861,11 @@ function setupUIListeners() {
 
     vadThreshold.addEventListener('input', () => {
         vadThresholdVal.textContent = `${vadThreshold.value}ms`;
-        // Move red gate marker line in UI
+        // Move red gate marker line in UI (COSMETIC ONLY).
+        // The VAD slider controls silence *duration* (ms) before speech is finalized,
+        // NOT volume sensitivity. The red gate marker position has NO functional link
+        // to the actual audio volume gating (which uses a fixed RMS threshold of 0.015).
         const thresholdPercent = ((vadThreshold.value - 300) / 1700) * 100;
-        // Map gate marker visually between 20% and 80% left positioning
         const markerPos = 15 + (thresholdPercent / 100) * 70;
         document.getElementById('vadGateMarker').style.left = `${markerPos}%`;
     });

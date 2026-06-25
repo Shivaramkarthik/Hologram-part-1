@@ -23,7 +23,7 @@ pip install -r requirements.txt --quiet
 
 :: Start the FastAPI server in a separate background window
 echo [System] Launching FastAPI backend server...
-start "Hologram Backend Server" uvicorn main:app --host 127.0.0.1 --port 8000
+start "Hologram Backend Server" venv\Scripts\uvicorn.exe main:app --host 127.0.0.1 --port 8000
 
 :: Wait 3 seconds for the server to spin up
 echo [System] Initializing backend (waiting 3s)...
@@ -31,7 +31,7 @@ timeout /t 3 /nobreak >nul
 
 :: Open the served webpage in the default browser (resolves websocket location correctly)
 echo [System] Opening Hologram Control Matrix in browser...
-start "" "..\frontend\index.html"
+start "" "http://127.0.0.1:8000/"
 
 echo =======================================================
 echo [Success] Hologram Matrix is running!
